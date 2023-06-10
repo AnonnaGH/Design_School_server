@@ -1,5 +1,6 @@
 const express = require('express')
 const cors = require('cors')
+const jwt = require('jsonwebtoken');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const app = express()
 
@@ -37,6 +38,17 @@ async function run() {
 
         const usersCollection = client.db("graphic_db").collection("users");
 
+
+        // jwt
+        app.post('/jwt', (req, res) => {
+            const user = req.body;
+            console.log(user)
+            const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' });
+            res.send({ token })
+        })
+
+
+        // user related api
 
         app.get('/users', async (req, res) => {
             const result = await usersCollection.find().toArray();
@@ -79,6 +91,24 @@ async function run() {
         })
 
 
+
+        // make instructor api
+
+
+        app.patch('/users/instructor/:id', async (req, res) => {
+            const id = req.params.id;
+            console.log(id);
+            const filter = { _id: new ObjectId(id) };
+            const updateDoc = {
+                $set: {
+                    role: 'instructor'
+                },
+            };
+
+            const result = await usersCollection.updateOne(filter, updateDoc);
+            res.send(result);
+
+        })
 
 
         // Send a ping to confirm a successful connection
