@@ -223,6 +223,14 @@ async function run() {
 
         })
 
+        app.delete('/classes/:id', verifyJWT, verifyInstructor, async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) }
+            const result = await allClasses.deleteOne(query);
+            res.send(result);
+        })
+
+
 
         // booked class api 
 
