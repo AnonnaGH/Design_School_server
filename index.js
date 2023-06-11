@@ -56,15 +56,37 @@ async function run() {
 
 
         const usersCollection = client.db("graphic_db").collection("users");
-
+        const allClasses = client.db("graphic_db").collection("classes");
+        const bookedClasses = client.db("graphic_db").collection("booked");
 
         // jwt
         app.post('/jwt', (req, res) => {
             const user = req.body;
             console.log(user)
-            const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' });
+            const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '24h' });
             res.send({ token })
         })
+
+
+        const verifyAdmin = async (req, res, next) => {
+            const email = req.decoded.email;
+            const query = { email: email }
+            const user = await usersCollection.findOne(query);
+            if (user?.role !== 'admin') {
+                return res.status(403).send({ error: true, message: 'forbidden message' });
+            }
+            next();
+        }
+
+        const verifyInstructor = async (req, res, next) => {
+            const email = req.decoded.email;
+            const query = { email: email }
+            const user = await usersCollection.findOne(query);
+            if (user?.role !== 'instructor') {
+                return res.status(403).send({ error: true, message: 'forbidden message' });
+            }
+            next();
+        }
 
 
         // user related api
@@ -157,6 +179,85 @@ async function run() {
             const result = { instructor: user?.role === 'instructor' }
             res.send(result);
         })
+
+
+
+
+
+        //  classes related apis
+        app.get('/classes', async (req, res) => {
+            let query = {};
+            if (req.query?.email) {
+                query = { email: req.query.email }
+            }
+
+            const result = await allClasses.find(query).toArray();
+            res.send(result);
+        });
+
+
+
+        app.post('/classes', verifyJWT, verifyInstructor, async (req, res) => {
+            const newItem = req.body;
+            const result = await allClasses.insertOne(newItem)
+            res.send(result);
+        })
+
+
+
+        app.patch('/classes/:id', async (req, res) => {
+            const status = req.body.status;
+
+            console.log(status)
+            const id = req.params.id;
+            console.log(id);
+            const filter = { _id: new ObjectId(id) };
+            const updateDoc = {
+                $set: {
+                    status: status
+                },
+            };
+
+            const result = await allClasses.updateOne(filter, updateDoc);
+            res.send(result);
+
+        })
+
+
+        // booked class api 
+
+        app.get('/booked', verifyJWT, async (req, res) => {
+            const email = req.query.email;
+
+            if (!email) {
+                res.send([]);
+            }
+
+            const decodedEmail = req.decoded.email;
+            if (email !== decodedEmail) {
+                return res.status(403).send({ error: true, message: 'forbidden access' })
+            }
+            const query = { user_email: email };
+            const result = await bookedClasses.find(query).toArray();
+            res.send(result);
+        });
+
+
+
+        app.post('/booked', async (req, res) => {
+            const item = req.body;
+            console.log(item);
+            const result = await bookedClasses.insertOne(item);
+            res.send(result);
+        })
+
+        app.delete('/booked/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
+            const result = await bookedClasses.deleteOne(query);
+            res.send(result);
+        })
+
 
 
 
