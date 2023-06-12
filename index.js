@@ -283,6 +283,22 @@ async function run() {
         })
 
 
+        // create payment intent
+        app.post('/create-payment-intent', async (req, res) => {
+            const { price } = req.body;
+            const amount = parseFloat(price * 100);
+            const paymentIntent = await stripe.paymentIntents.create({
+                amount: amount,
+                currency: 'usd',
+                payment_method_types: ['card']
+            });
+
+            res.send({
+                clientSecret: paymentIntent.client_secret
+            })
+        })
+
+
 
 
         // Send a ping to confirm a successful connection
@@ -308,3 +324,41 @@ app.listen(port, () => {
 })
 
 
+
+
+
+
+
+
+
+
+
+
+// // popular 6 class sort
+
+// app.get("/musicDataSort", async (req, res) => {
+
+//     const sort = req.query.sort;
+
+
+//     const options = {
+
+//         sort: { numberOfStudents: sort == "asc" ? 1 : -1 },
+
+//     };
+
+//     console.log(173, options);
+//     const result = await musicDataCollection
+
+//         .find()
+
+//         .sort({ numberOfStudents: sort - "asc" ? 1 : -1 })
+
+//     .limit(6)
+
+//         .toArray();
+
+//     console.log(173, result);
+
+//     res.send(result);
+// });
