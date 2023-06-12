@@ -223,6 +223,22 @@ async function run() {
 
         })
 
+        app.put('/classes/:id', async (req, res) => {
+            const id = req.params.id;
+            const body = req.body;
+            console.log(id, body);
+
+            const filter = { _id: new ObjectId(id) }
+            const options = { upsert: true }
+            const updateDoc = {
+                $set: body
+            };
+            const result = await allClasses.updateOne(filter, updateDoc, options);
+            res.send(result);
+
+
+        })
+
         app.delete('/classes/:id', verifyJWT, verifyInstructor, async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) }
