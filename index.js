@@ -328,6 +328,48 @@ async function run() {
 
 
 
+        app.get('/topInstructors', async (req, res) => {
+            try {
+                const result = await paymentCollection.aggregate([
+                    {
+                        $group: {
+                            _id: "$instructor_email",
+                            totalPayments: { $sum: 1 }
+                        }
+                    },
+                    {
+                        $sort: { totalPayments: -1 }
+                    },
+                    {
+                        $limit: 3
+                    }
+                ]).toArray();
+
+                const instructorEmails = result.map(instructor => instructor._id);
+
+                const instructors = await usersCollection.find({ email: { $in: instructorEmails } }).toArray();
+
+                const enrichedResult = result.map(instructor => {
+                    const matchedInstructor = instructors.find(i => i.email === instructor._id);
+                    return {
+                        email: instructor._id,
+                        name: matchedInstructor?.name,
+                        totalPayments: instructor.totalPayments,
+                        image: matchedInstructor?.photo
+                    };
+                });
+
+                res.send(enrichedResult);
+            } catch (error) {
+                console.error(error);
+                res.status(500).send("Internal Server Error");
+            }
+        });
+
+
+
+
+
 
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
