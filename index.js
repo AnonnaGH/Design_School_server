@@ -3,8 +3,8 @@ const cors = require('cors')
 const jwt = require('jsonwebtoken');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const app = express()
-
 require('dotenv').config()
+const stripe = require('stripe')(process.env.PAYMENT_SECRET_KEY)
 const port = process.env.PORT || 5000
 
 
@@ -38,7 +38,9 @@ const verifyJWT = (req, res, next) => {
 }
 
 
-const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.2fbz8ar.mongodb.net/?retryWrites=true&w=majority`;
+// const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.2fbz8ar.mongodb.net/?retryWrites=true&w=majority`;
+
+const uri = `mongodb://${process.env.DB_USER}:${process.env.DB_PASS}@ac-mkrqdj9-shard-00-00.2fbz8ar.mongodb.net:27017,ac-mkrqdj9-shard-00-01.2fbz8ar.mongodb.net:27017,ac-mkrqdj9-shard-00-02.2fbz8ar.mongodb.net:27017/?ssl=true&replicaSet=atlas-7xxfjn-shard-0&authSource=admin&retryWrites=true&w=majority`
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
@@ -52,12 +54,13 @@ const client = new MongoClient(uri, {
 async function run() {
     try {
         // Connect the client to the server	(optional starting in v4.7)
-        await client.connect();
+        // await client.connect();
 
 
         const usersCollection = client.db("graphic_db").collection("users");
         const allClasses = client.db("graphic_db").collection("classes");
         const bookedClasses = client.db("graphic_db").collection("booked");
+        const paymentCollection = client.db("graphic_db").collection("payments");
 
         // jwt
         app.post('/jwt', (req, res) => {
@@ -114,7 +117,7 @@ async function run() {
         })
 
 
-        // admin api
+        // make admin api
 
         app.patch('/users/admin/:id', async (req, res) => {
             const id = req.params.id;
@@ -130,6 +133,9 @@ async function run() {
             res.send(result);
 
         })
+
+
+
 
         // check admin
         app.get('/users/admin/:email', verifyJWT, async (req, res) => {
@@ -284,7 +290,7 @@ async function run() {
 
 
         // create payment intent
-        app.post('/create-payment-intent', async (req, res) => {
+        app.post('/create-payment-intent', verifyJWT, async (req, res) => {
             const { price } = req.body;
             const amount = parseFloat(price * 100);
             const paymentIntent = await stripe.paymentIntents.create({
@@ -297,6 +303,28 @@ async function run() {
                 clientSecret: paymentIntent.client_secret
             })
         })
+
+        // payment related api
+        app.post('/payments', verifyJWT, async (req, res) => {
+            const paymentInfo = req.body;
+            const insertResult = await paymentCollection.insertOne(paymentInfo);
+
+            const query = { _id: new ObjectId(paymentInfo._id) };
+            const deleteResult = await bookedClasses.deleteOne(query);
+
+            res.send({ insertResult, deleteResult });
+        });
+
+        app.get('/payments', async (req, res) => {
+            let query = {};
+            if (req.query?.email) {
+                query = { email: req.query.email }
+            }
+
+
+            const result = await paymentCollection.find(query).toArray();
+            res.send(result);
+        });
 
 
 
