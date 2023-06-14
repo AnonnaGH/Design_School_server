@@ -213,6 +213,7 @@ async function run() {
 
         app.patch('/classes/:id', async (req, res) => {
             const status = req.body.status;
+            const feedback = req.body.feedback;
 
             console.log(status)
             const id = req.params.id;
@@ -220,7 +221,8 @@ async function run() {
             const filter = { _id: new ObjectId(id) };
             const updateDoc = {
                 $set: {
-                    status: status
+                    status: status,
+                    feedback: feedback,
                 },
             };
 
@@ -228,6 +230,7 @@ async function run() {
             res.send(result);
 
         })
+
 
         app.put('/classes/:id', async (req, res) => {
             const id = req.params.id;
@@ -273,6 +276,21 @@ async function run() {
         });
 
 
+        app.get('/booked/instructor', verifyJWT, async (req, res) => {
+            const email = req.query.email;
+
+            if (!email) {
+                res.send([]);
+            }
+
+            const decodedEmail = req.decoded.email;
+            if (email !== decodedEmail) {
+                return res.status(403).send({ error: true, message: 'forbidden access' })
+            }
+            const query = { email: email };
+            const result = await bookedClasses.find(query).toArray();
+            res.send(result);
+        });
 
         app.post('/booked', async (req, res) => {
             const item = req.body;
@@ -307,6 +325,7 @@ async function run() {
         // payment related api
         app.post('/payments', verifyJWT, async (req, res) => {
             const paymentInfo = req.body;
+            paymentInfo.createdAt = new Date();
             const insertResult = await paymentCollection.insertOne(paymentInfo);
 
             const query = { _id: new ObjectId(paymentInfo._id) };
@@ -322,7 +341,7 @@ async function run() {
             }
 
 
-            const result = await paymentCollection.find(query).toArray();
+            const result = await paymentCollection.find(query).sort({ createdAt: -1 }).toArray();
             res.send(result);
         });
 
@@ -341,7 +360,7 @@ async function run() {
                         $sort: { totalPayments: -1 }
                     },
                     {
-                        $limit: 3
+                        $limit: 6
                     }
                 ]).toArray();
 
